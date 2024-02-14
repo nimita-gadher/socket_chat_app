@@ -2,6 +2,7 @@ const UserModel = require("../models/User");
 const Joi = require('joi');
 const bcrypt = require('bcrypt');
 const jwt = require("jsonwebtoken");
+const { Op } = require("sequelize");
 
 
 // create token 
@@ -61,7 +62,7 @@ const register = async (req, res) => {
             return res.status(400).json("Email already exists...");
         }
 
-       
+
 
         user = new UserModel({
             firstName,
@@ -78,7 +79,9 @@ const register = async (req, res) => {
         await user.save();
         const token = createToken(user.userName);
         const userId = user.id;
+        const id = user.id;
         const userData = {
+            id,
             userId,
             firstName,
             lastName,
@@ -87,17 +90,20 @@ const register = async (req, res) => {
             mobileNumber,
             token
         }
-        res.status(200).json({success : true, msg: "User register successfully...", userData: userData })
+        res.status(200).json(userData
+        )
 
     } catch (error) {
-        res.status(500).json({error:error})
+        res.status(500).json({ error: error })
     }
 
 }
 
 const login = async (req, res) => {
     const { email, password } = req.body;
+    console.log('loginEmal', email)
     try {
+
         const { error, value } = loginschema.validate(req.body);
 
         if (error) {
@@ -119,11 +125,12 @@ const login = async (req, res) => {
         const token = createToken(user.id);
 
         const userData = {
-            id:user.id,
+            id: user.id,
             userName: user.userName, // Assuming you have a 'name' field in your user model
             email: user.email,
             mobileNumber: user.mobileNumber,
-            type:user.userType,
+            type: user.userType,
+            image: user.image,
             token
         };
 
@@ -152,6 +159,7 @@ const findUser = async (req, res) => {
             lastName: user.lastName,
             email: user.email,
             mobileNumber: user.mobileNumber,
+            image: user.image,
 
         };
 
@@ -160,6 +168,43 @@ const findUser = async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+}
+
+const searchUser = async (req, res) => {
+
+    try {
+        const { userName } = req.body;
+
+        // Check if userName is provided
+        if (!userName) {
+            return res.status(400).json({ error: 'userName parameter is required' });
+        }
+
+        // Find users with matching userName
+        const users = await UserModel.findAll({
+            where: {
+                userName: {
+                    [Op.like]: `%${userName}%`, // Use LIKE for partial matches
+                },
+            },
+        });
+
+        // Customize the user data as needed
+        const userArray = users.map(user => ({
+            id: user.id,
+            userName: user.userName,
+            email: user.email,
+            mobileNumber: user.mobileNumber,
+            // type: user.userType,
+        }));
+
+        res.status(200).json(userArray);
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+
+
 }
 
 const getAllUsers = async (req, res) => {
@@ -182,11 +227,85 @@ const getAllUsers = async (req, res) => {
     }
 }
 
+// Function to handle profile image upload
+const uploadProfileImage = async (req, res) => {
+    try {
+
+        // Get the user ID from the request
+        const userId = req.params.userId;
+        const { imageUrl } = req.body
+
+        // Update the user's profile image path in the database
+        await UserModel.update({ image: imageUrl }, { where: { id: userId } });
+
+        // Send a success response
+        res.status(200).json({ message: 'Profile image uploaded successfully' });
+    } catch (error) {
+        console.error('Error uploading profile image:', error);
+        res.status(500).json({ error: 'Internal server error', error });
+    }
+};
+
+
+const editProfile = async (req, res) => {
+    try {
+        // Get the user ID from the request
+        const userId = req.params.userId;
+
+        // Get the fields to update from the request body
+        const fieldsToUpdate = req.body;
+
+        // Construct an object containing only the provided fields
+        const updatedFields = {};
+        for (const key in fieldsToUpdate) {
+            if (fieldsToUpdate.hasOwnProperty(key)) {
+                updatedFields[key] = fieldsToUpdate[key];
+            }
+        }
+
+        // Update the user's profile in the database with the provided fields
+        await UserModel.update(updatedFields, { where: { id: userId } });
+
+        // Send a success response
+        res.status(200).json({ message: 'Profile updated successfully' });
+
+
+    } catch (error) {
+        res.status(500).json({ error: 'Internak server error', error });
+    }
+}
+
+const deleteUserProfile = async (req, res) => {
+
+    try {
+
+        // Get the user ID from the request
+        const userId = req.params.userId;
+
+         // Find the user by ID and delete it
+         const deletedUser = await UserModel.destroy({ where: { id: userId } });
+
+         // Check if the user was found and deleted
+         if (deletedUser === 0) {
+             return res.status(404).json({ error: 'User not found' });
+         }
+ 
+         // Send a success response
+         res.status(200).json({ message: 'User profile deleted successfully' });
+
+    } catch (error) {
+        return res.status(500).json({ error: 'Internak server error', error });
+    }
+}
 
 module.exports = {
     register,
     login,
     findUser,
-    getAllUsers
+    getAllUsers,
+    searchUser,
+    uploadProfileImage,
+    editProfile,
+    deleteUserProfile,
 }
 

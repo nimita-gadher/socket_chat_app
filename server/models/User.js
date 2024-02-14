@@ -28,7 +28,8 @@ const User = db.sequelize.define(
       type: Sequelize.STRING
     },
     image:{
-      type: Sequelize.STRING
+      type: Sequelize.STRING,
+      allowNull: true
     }
   },
   {

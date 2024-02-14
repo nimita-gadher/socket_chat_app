@@ -39,6 +39,20 @@ const createChat = async (req, res) => {
     }
 };
 
+const getAllChats = async (req,res) => {
+    console.log('1')
+    try {
+        console.log('call');
+        const chats = await chatModel.findAll();
+        console.log('chats', chats);
+
+        return res.status(200).json(chats);
+    } catch (error) {
+        console.error('Error fetching chats:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+}
+
 // createChat
 // const createChat = async (req, res) => {
 //     const { firstId, secondId } = req.body;
@@ -107,8 +121,77 @@ const findChat = async (req, res) => {
     }
 }
 
+const deleteChat = async (req,res) => {
+    try{
+        const chatId = req.params.chatId;
+
+        const deletedChat = await chatModel.destroy({where: {id: chatId}});
+
+        if(deletedChat === 0){
+            return res.status(404).json({error: 'chat not found'});
+        }
+
+        return res.status(200).json({message : 'Chat deleted successfully'});
+
+    }catch(error){
+        return res.status(500).json({error : 'Internal server error', error})
+    }
+}
+
+const deleteChats = async (req, res) => {
+    try {
+        const { chatIds } = req.body;
+
+        // Delete chats with the specified chatIds
+        const deletedChatsCount = await chatModel.destroy({ where: { id: chatIds } });
+
+        // Check if any chats were deleted
+        if (deletedChatsCount === 0) {
+            return res.status(404).json({ error: 'No chats found with the provided chatIds' });
+        }
+
+        return res.status(200).json({ message: 'Chats deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting chats:', error);
+        return res.status(500).json({ error: 'Internal server error', error });
+    }
+};
+
+const getChatIdsByMemberId = async (req, res) => {
+    try {
+      const { memberId } = req.params;
+  
+      // Use Sequelize query instead of findAll to execute custom SQL query
+      const existingChat = await sequelize.query(
+        'SELECT `id`, `members` FROM `chats` WHERE JSON_CONTAINS(`members`, :memberId)',
+        {
+          replacements: { memberId: memberId },
+          type: Sequelize.QueryTypes.SELECT,
+          model: chatModel,
+        }
+      );
+  
+      console.log('existingChat', existingChat)
+      // Extract chat IDs from the retrieved chats
+      const chatIds = existingChat.map(chat => chat.id);
+  
+      res.json({ success: true, chatIds });
+    } catch (error) {
+      console.error('Error fetching chat IDs:', error);
+      res.status(500).json({ success: false, error: 'Internal server error', error });
+    }
+  };
+  
+  
+  
+
+
 module.exports = {
     createChat,
     findUserChat,
-    findChat
+    findChat,
+    getAllChats,
+    deleteChat,
+    deleteChats,
+    getChatIdsByMemberId,
 }

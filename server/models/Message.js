@@ -18,9 +18,20 @@ const Message = db.sequelize.define(
         text: {
             type: Sequelize.STRING
         },
+        createdAt: {
+            type: Sequelize.DATE,
+            defaultValue: () => new Date(),
+            allowNull: false,
+        },
+        updatedAt:{
+            type: Sequelize.DATE,
+        },
+        status: {
+            type: Sequelize.STRING
+        },
     },
     {
-        timestamps: false
+        timestamps: true
     }
 )
 
